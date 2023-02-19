@@ -4,6 +4,10 @@ var path = require("path");
 var cookieParser = require("cookie-parser");
 var logger = require("morgan");
 
+// passport
+var passport = require("passport");
+var configAuth = require("./config/auth");
+
 const dotenv = require("dotenv");
 if (process.env.NODE_ENV === "production") {
   dotenv.config({ path: "./.env.production" });
@@ -15,6 +19,7 @@ if (process.env.NODE_ENV === "production") {
 
 var indexRouter = require("./routes/index");
 var usersRouter = require("./routes/users");
+var authRouter = require("./routes/auth");
 
 var app = express();
 
@@ -62,8 +67,13 @@ const server = async () => {
       )
     );
 
+    // passport
+    configAuth();
+    app.use(passport.initialize());
+
     // router
     app.use("/", indexRouter);
+    app.use("/auth", authRouter);
     app.use("/users", usersRouter);
 
     // catch 404 and forward to error handler
