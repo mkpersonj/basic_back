@@ -18,59 +18,75 @@ var usersRouter = require("./routes/users");
 
 var app = express();
 
-// view engine setup
-app.set("views", path.join(__dirname, "views"));
-app.set("view engine", "jade");
+const mongoose = require("mongoose");
+const MONGO_URI = `mongodb+srv://dbuser:${process.env.MONGODB_PASSWORD}@cluster0.d0ybjz6.mongodb.net/test?authMechanism=DEFAULT&retryWrites=true&w=majority`;
 
-app.use(logger("dev"));
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser());
-app.use(express.static(path.join(__dirname, "public")));
+const server = async () => {
+  try {
+    mongoose.set("strictQuery", false);
+    await mongoose.connect(MONGO_URI);
+    console.log("MongoDB connected!");
 
-// cors
-var cors = require("cors");
+    // view engine setup
+    app.set("views", path.join(__dirname, "views"));
+    app.set("view engine", "jade");
 
-var allowlist = [`http://localhost:3000`];
-var corsOptionsDelegate = function (req, callback) {
-  var corsOptions;
-  if (allowlist.indexOf(req.header("Origin")) !== -1) {
-    corsOptions = {
-      origin: true,
-      credentials: true,
-    }; // reflect (enable) the requested origin in the CORS response
-  } else {
-    corsOptions = { origin: false }; // disable CORS for this request
+    app.use(logger("dev"));
+    app.use(express.json());
+    app.use(express.urlencoded({ extended: false }));
+    app.use(cookieParser());
+    app.use(express.static(path.join(__dirname, "public")));
+
+    // cors
+    var cors = require("cors");
+
+    var allowlist = [`http://localhost:3000`];
+    var corsOptionsDelegate = function (req, callback) {
+      var corsOptions;
+      if (allowlist.indexOf(req.header("Origin")) !== -1) {
+        corsOptions = {
+          origin: true,
+          credentials: true,
+        }; // reflect (enable) the requested origin in the CORS response
+      } else {
+        corsOptions = { origin: false }; // disable CORS for this request
+      }
+      callback(null, corsOptions); // callback expects two parameters: error and options
+    };
+
+    app.use(
+      cors(
+        process.env.NODE_ENV !== "production"
+          ? { origin: true, credentials: true }
+          : corsOptionsDelegate
+      )
+    );
+
+    // router
+    app.use("/", indexRouter);
+    app.use("/users", usersRouter);
+
+    // catch 404 and forward to error handler
+    app.use(function (req, res, next) {
+      next(createError(404));
+    });
+
+    // error handler
+    app.use(function (err, req, res, next) {
+      // return err message
+      console.log(err);
+      res.status(err.status || 500).send({
+        err: req.app.get("env") === "production" ? null : err.message,
+      });
+    });
+
+    app.listen(process.env.BACK_PORT, function () {
+      console.log(`server listening on port ${process.env.BACK_PORT}!`);
+    });
+  } catch (err) {
+    console.log(err);
+    new Error(err.message);
   }
-  callback(null, corsOptions); // callback expects two parameters: error and options
 };
 
-app.use(
-  cors(
-    process.env.NODE_ENV !== "production"
-      ? { origin: true, credentials: true }
-      : corsOptionsDelegate
-  )
-);
-
-// router
-app.use("/", indexRouter);
-app.use("/users", usersRouter);
-
-// catch 404 and forward to error handler
-app.use(function (req, res, next) {
-  next(createError(404));
-});
-
-// error handler
-app.use(function (err, req, res, next) {
-  // return err message
-  console.log(err);
-  res.status(err.status || 500).send({
-    err: req.app.get("env") === "production" ? null : err.message,
-  });
-});
-
-app.listen(process.env.BACK_PORT, function () {
-  console.log(`server listening on port ${process.env.BACK_PORT}!`);
-});
+server();
